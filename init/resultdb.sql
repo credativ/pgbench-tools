@@ -33,7 +33,7 @@ CREATE TABLE timing(
   ts timestamp,
   filenum int, 
   latency numeric(9,3),
-  test int NOT NULL REFERENCES tests(test)
+  test int
   );
 
 CREATE INDEX idx_timing_test on timing(test,ts);
