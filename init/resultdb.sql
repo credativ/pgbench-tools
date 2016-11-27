@@ -29,14 +29,15 @@ CREATE TABLE tests(
 
 DROP TABLE IF EXISTS timing;
 -- Staging table, for loading in data from CSV
-CREATE TABLE timing(
+CREATE UNLOGGED TABLE timing(
   ts timestamp,
   filenum int, 
   latency numeric(9,3),
   test int
   );
 
-CREATE INDEX idx_timing_test on timing(test,ts);
+CREATE INDEX on timing(latency);
+CREATE INDEX on timing(extract(epoch from ts), latency);
 
 DROP TABLE IF EXISTS test_bgwriter;
 CREATE TABLE test_bgwriter(

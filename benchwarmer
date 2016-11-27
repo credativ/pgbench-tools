@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x
 source ./config
 
 # Take clients and rate limit from command line if passed, use defaults
@@ -301,16 +301,16 @@ if [ -z "$TESTFORTS" ]; then
 else
 
   # Import timestamp information
-  $BASEDIR/log-to-csv $TEST < pgbench.log | $RESULTPSQL -c "copy timing from stdin with csv"
-  $RESULTPSQL -q -c "update tests set avg_latency=(select avg(latency) from timing where tests.test=timing.test), max_latency=(select max(latency)from timing where tests.test=timing.test), percentile_90_latency=(select latency from timing where tests.test=timing.test order by latency offset (round(0.90*trans)) limit 1) where tests.test='$TEST'"
+  $BASEDIR/log-to-csv $TEST < pgbench.log |parallel --block 5M --pipe --no-notice -j4 -q  $RESULTPSQL -c "copy timing from stdin with csv"
+  $RESULTPSQL -q -c "update tests set avg_latency=(select avg(latency) from timing), max_latency=(select max(latency)from timing), percentile_90_latency=(select latency from timing order by latency offset (round(0.90*trans)) limit 1) where tests.test='$TEST'"
   $BASEDIR/dirty-plot < meminfo.log > dirtydata.txt
 
   if [ ! -z $GNUPLOT ] && [ -x $GNUPLOT ]; then
     # Plot result graphs
-    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from date_trunc('second',ts)),count(*) from timing where test=$TEST group by date_trunc('second',ts) order by date_trunc('second',ts)" > tpsdata.txt
+    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from date_trunc('second',ts)),count(*) from timing group by date_trunc('second',ts) order by date_trunc('second',ts)" > tpsdata.txt
     $GNUPLOT $BASEDIR/plots/tps.plot
 
-    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from ts),latency from timing where test=$TEST" > latency.txt
+    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from ts),latency from timing" > latency.txt
     $GNUPLOT $BASEDIR/plots/latency.plot
 
     $GNUPLOT $BASEDIR/plots/dirty.plot
