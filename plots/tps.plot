@@ -1,4 +1,4 @@
-set terminal png medium size 640,480
+set terminal pngcairo size 640,480
 set output "tps.png"
 set title "TPS"
 set grid xtics ytics

@@ -95,9 +95,8 @@ def table_gnuplotter(rows, header=True, destination=sys.stdout, title=""):
     gp = os.popen('gnuplot', 'w')
 
     # TODO Make the input destination actually get used by the output file here
-    gp.write("set output 'graph.png'; set terminal png;\n")
-    gp.write("set term png size 640,480;\n")
-    gp.write("set terminal png medium;\n")
+    gp.write("set output 'graph.png'; set terminal pngcairo;\n")
+    gp.write("set term pngcairo size 640,480;\n")
 
     # Alternate size code from other versions:
     # gp.write("set size 0.75,0.75;\n")
@@ -182,9 +181,8 @@ def ds_gnuplotter(sets, destination=sys.stdout, title="", tsdata=True, ycolumn=1
     gp = os.popen('gnuplot', 'w')
 
     # TODO Make the input destination actually get used by the output file here
-    gp.write("set output 'graph.png'; set terminal png;\n")
-    gp.write("set term png size 640,480;\n")
-    gp.write("set terminal png medium;\n")
+    gp.write("set output 'graph.png'; set terminal pngcairo;\n")
+    gp.write("set term pngcairo size 640,480;\n")
     gp.write("set title '%s'; " % title)
 
     # Alternate size code from other versions:
