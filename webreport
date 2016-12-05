@@ -62,9 +62,10 @@ echo "<img src=\"scaling.png\"><p>" >> $OUTFILE
 echo "<img src=\"clients.png\"><p>" >> $OUTFILE
 echo "<img src=\"3d.png\"><p>" >> $OUTFILE
 echo "<h3>Test sets comparison:</h3>" >> $OUTFILE
-echo "<img src=\"scaling-sets.png\"><p>" >> $OUTFILE
+
 echo "<img src=\"clients-sets.png\"><p>" >> $OUTFILE
 
+echo "<img src=\"scaling-sets.png\"><p>" >> $OUTFILE
 # Loop over all the active test sets
 SETS=`$RESULTPSQL -A -t -c "select set from tests group by set order by set"`
 
@@ -137,12 +138,15 @@ done
 
 # Plot set comparison
 cat > multi-client.plot << "ENDING"
-set terminal pngcairo size 640,480
+set terminal pngcairo size 1280,640
 set output "clients-sets.png"
 set title "pgbench transactions/sec"
 set grid xtics ytics
+set logscale x
+set logscale y
 set xlabel "Clients"
 set ylabel "TPS"
+set samples 50
 plot \
 ENDING
 
@@ -153,6 +157,7 @@ set title "pgbench transactions/sec"
 set grid xtics ytics
 set xlabel "Scaling factor"
 set ylabel "TPS"
+set samples 50
 plot \
 ENDING
 
