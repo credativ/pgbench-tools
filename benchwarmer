@@ -392,7 +392,8 @@ mount >> $SETTINGS
 # Remove temporary files, don't complain if the files are missing e.g.
 # because we skipped gnuplot'ing and generating these files
 rm pgbench_log.${P}*
-gzip -4 pgbench.log
-gzip -4 tpsdata.txt
-gzip -4 latency.txt
-gzip -4 dirtydata.txt
+gzip -4 pgbench.log &
+gzip -4 tpsdata.txt &
+gzip -4 latency.txt &
+gzip -4 dirtydata.txt &
+wait
