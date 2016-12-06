@@ -138,26 +138,27 @@ done
 
 # Plot set comparison
 cat > multi-client.plot << "ENDING"
-set terminal pngcairo size 1280,640
+set terminal pngcairo size 1600,800 font 'Verdana,8'
 set output "clients-sets.png"
 set title "pgbench transactions/sec"
 set grid xtics ytics
-set logscale x
+#set logscale x
 set logscale y
+#set xrange [0:500]
 set xlabel "Clients"
 set ylabel "TPS"
-set samples 50
+set samples 15
 plot \
 ENDING
 
 cat > multi-scale.plot << "ENDING"
-set terminal pngcairo size 640,480
+set terminal pngcairo size 1600,320 font 'Verdana,8'
 set output "scaling-sets.png"
 set title "pgbench transactions/sec"
 set grid xtics ytics
 set xlabel "Scaling factor"
 set ylabel "TPS"
-set samples 50
+set samples 15
 plot \
 ENDING
 
@@ -172,7 +173,7 @@ for SET in $SETS ; do
   fi
 
   echo  "'scaling-$SET.txt' using 1:3 axis x1y1 title '$DESCR' with linespoints $DELIM" >> multi-scale.plot
-  echo  "'clients-$SET.txt' using 1:2 axis x1y1 title '$DESCR' with linespoints $DELIM" >> multi-client.plot
+  echo  "'clients-$SET.txt' using 1:2 smoot bezier axis x1y1 title '$DESCR' with linespoints $DELIM" >> multi-client.plot
 done
 
 if [ ! -z $GNUPLOT ] && [ -x $GNUPLOT ]; then
