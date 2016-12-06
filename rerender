@@ -14,6 +14,7 @@ TEST=$1
 cd results/$TEST
 
 SET=`$RESULTPSQL -A -t -c "select set from tests WHERE test=$TEST"`
+
 if [ "$?" -ne "0" ]; then
   echo ERROR  Can\'t read from tests table.  Was the test data installed?
   exit
@@ -24,42 +25,20 @@ if [ -z "$SET" ]; then
   exit
 fi
 
-# Figure out if this version of PostgreSQL includes buffers_backend_fsync
-$TESTPSQL -c "SELECT buffers_backend_fsync FROM pg_stat_bgwriter" >> /dev/null 2>&1
-if [ "$?" -ne "0" ]; then
-  BACKEND_FSYNC="0"
-else
-  BACKEND_FSYNC="buffers_backend_fsync"
-fi
-
 # Setup test directory tree
 echo This is test $TEST
-
-gunzip pgbench.log.gz &
-gunzip tpsdata.txt.gz &
-gunzip latency.txt.gz &
-gunzip dirtydata.txt.gz &
-wait
 
 # TODO On Solaris, this may need to use /usr/xpg4/bin/tail instead
 
 tps=`grep "(including connections establishing)" results.txt | cut -d " " -f 3`
 trans=`grep "number of transactions actually processed:" results.txt | cut -d":" -f 2 | cut -d "/" -f 1`
 
-  $BASEDIR/log-to-csv $TEST < pgbench.log |  $RESULTPSQL -c "copy timing from stdin with csv"
+  zcat pgbench.log.gz | $BASEDIR/log-to-csv $TEST |  $RESULTPSQL -c "copy timing from stdin with csv"
 
-  $RESULTPSQL -q -c "update tests set avg_latency=(select avg(latency) from timing), max_latency=(select max(latency)from timing), percentile_90_latency=(select latency from timing order by latency offset (round(0.90*trans)) limit 1) where tests.test='$TEST'"
-  $BASEDIR/dirty-plot < meminfo.log > dirtydata.txt
-
-  if [ ! -z $GNUPLOT ] && [ -x $GNUPLOT ]; then
-    # Plot result graphs
-    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from date_trunc('second',ts)),count(*) from timing group by date_trunc('second',ts) order by date_trunc('second',ts)" > tpsdata.txt
-    $GNUPLOT $BASEDIR/plots/tps.plot
-
-    $RESULTPSQL -A -t -F' ' -c "select extract(epoch from ts),latency from timing" > latency.txt
-    $GNUPLOT $BASEDIR/plots/latency.plot
-
-    $GNUPLOT $BASEDIR/plots/dirty.plot
+    $GNUPLOT $BASEDIR/plots/tps.plot       &
+    $GNUPLOT $BASEDIR/plots/latency.plot   &
+    $GNUPLOT $BASEDIR/plots/dirty.plot     &
+    wait ; 
 
     # TODO If $GNUPLOT is set to something other than its default value from `which`, there
     # should be a command line option in csv2gnuplot that informs the program of that path.
@@ -75,12 +54,15 @@ trans=`grep "number of transactions actually processed:" results.txt | cut -d":"
 
     $BASEDIR/csv2gnuplot -i vmstat.log -d vmstat -t "pgbench vmstat"
     mv graph.png vmstat.png
-  else
-    echo "gnuplot not found, skipping benchwarmer charts generation"
-  fi
+
+
 
 cp $BASEDIR/templates/test-index.html index.html
-cp $BASEDIR/config config
+#cp $BASEDIR/config config
+mv index.html index.html_tmp
+$RESULTPSQL --html -xc "select test testnr, set, extract(minute from age( end_time, start_time)) duration, scale, pg_size_pretty(dbsize) dbsize,floor(tps) tps,  script, clients, workers, ceil(avg_latency) avg_latency, max_latency, pg_size_pretty(wal_written) wal_written from tests WHERE test=$TEST"   > index.html
+cat index.html_tmp >> index.html
+rm  index.html_tmp
 
 # Now that we're done plotting and computing stats, wipe the low-level
 # data we don't need anymore
@@ -94,13 +76,3 @@ if [ "$SERVERHOST" = "localhost" ]; then
 fi
 SETTINGS="pg_settings.txt"
 
-# Write out system and PostgreSQL installation
-
-# Remove temporary files, don't complain if the files are missing e.g.
-# because we skipped gnuplot'ing and generating these files
-pigz -2 pgbench.log &
-pigz -2 tpsdata.txt &
-pigz -2 latency.txt &
-pigz -2 dirtydata.txt &
-
-wait
