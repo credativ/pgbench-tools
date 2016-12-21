@@ -1,0 +1,78 @@
+#!/bin/bash
+set -x
+source ./config
+
+# Take clients and rate limit from command line if passed, use defaults
+# otherwise
+
+# psql statements for the test database and the result database
+RESULTPSQL="psql -h $RESULTHOST -U $RESULTUSER -p $RESULTPORT -d $RESULTDB"
+echo Storing results using:  $RESULTPSQL
+
+TEST=$1
+# Find current test set
+cd results/$TEST
+
+SET=`$RESULTPSQL -A -t -c "select set from tests WHERE test=$TEST"`
+
+if [ "$?" -ne "0" ]; then
+  echo ERROR  Can\'t read from tests table.  Was the test data installed?
+  exit
+fi
+
+if [ -z "$SET" ]; then
+  echo ERROR:  Attempt to get a test number returned \"$TEST\", aborting
+  exit
+fi
+
+# Setup test directory tree
+echo This is test $TEST
+
+# TODO On Solaris, this may need to use /usr/xpg4/bin/tail instead
+
+tps=`grep "(including connections establishing)" results.txt | cut -d " " -f 3`
+trans=`grep "number of transactions actually processed:" results.txt | cut -d":" -f 2 | cut -d "/" -f 1`
+
+  zcat pgbench.log.gz | $BASEDIR/log-to-csv $TEST |  $RESULTPSQL -c "copy timing from stdin with csv"
+
+    $GNUPLOT $BASEDIR/plots/tps.plot       &
+    $GNUPLOT $BASEDIR/plots/latency.plot   &
+    $GNUPLOT $BASEDIR/plots/dirty.plot     &
+    wait ; 
+
+    # TODO If $GNUPLOT is set to something other than its default value from `which`, there
+    # should be a command line option in csv2gnuplot that informs the program of that path.
+
+    $BASEDIR/csv2gnuplot -i iostat.log -d iostat -t "pgbench disk writes" --disks="$DISKLIST" --diskstats="wMB/s"
+    mv graph.png iostat-writeMB.png
+
+    $BASEDIR/csv2gnuplot -i iostat.log -d iostat -t "pgbench disk reads" --disks="$DISKLIST" --diskstats="rMB/s"
+    mv graph.png iostat-readMB.png
+
+    $BASEDIR/csv2gnuplot -i iostat.log -d iostat -t "pgbench disk utilization" --disks="$DISKLIST" --diskstats="%util"
+    mv graph.png iostat-util.png
+
+    $BASEDIR/csv2gnuplot -i vmstat.log -d vmstat -t "pgbench vmstat"
+    mv graph.png vmstat.png
+
+
+
+cp $BASEDIR/templates/test-index.html index.html
+#cp $BASEDIR/config config
+mv index.html index.html_tmp
+$RESULTPSQL --html -xc "select test testnr, set, extract(minute from age( end_time, start_time)) duration, scale, pg_size_pretty(dbsize) dbsize,floor(tps) tps,  script, clients, workers, ceil(avg_latency) avg_latency, max_latency, pg_size_pretty(wal_written) wal_written from tests WHERE test=$TEST"   > index.html
+cat index.html_tmp >> index.html
+rm  index.html_tmp
+
+# Now that we're done plotting and computing stats, wipe the low-level
+# data we don't need anymore
+$RESULTPSQL -q -c "truncate table timing"
+
+# Save some configuration information about the server
+CLIENTHOST=`hostname`
+SERVERHOST="$TESTHOST"
+if [ "$SERVERHOST" = "localhost" ]; then
+  SERVERHOST="$CLIENTHOST"
+fi
+SETTINGS="pg_settings.txt"
+
