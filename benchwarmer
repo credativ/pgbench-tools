@@ -220,7 +220,7 @@ fi
 # Run the main pgbench test
 cd results/$TEST
 echo Script $SCRIPT executing for $CLIENTS concurrent users... 1>&2
-$PGBENCHBIN -f $BASEDIR/$TESTDIR/$SCRIPT -s $SCALE -l -n $TESTLEN -U $TESTUSER -h $TESTHOST -p $TESTPORT -c $CLIENTS $WORKERS $RATEOPT $TESTDB > results.txt &
+$PGBENCHBIN -M prepared -f $BASEDIR/$TESTDIR/$SCRIPT -s $SCALE -l -n $TESTLEN -U $TESTUSER -h $TESTHOST -p $TESTPORT -c $CLIENTS $WORKERS $RATEOPT $TESTDB > results.txt &
 P=$!
 wait $P
 $RESULTPSQL -q -c "update tests set end_time=now() where test=$TEST"
@@ -392,7 +392,8 @@ mount >> $SETTINGS
 # Remove temporary files, don't complain if the files are missing e.g.
 # because we skipped gnuplot'ing and generating these files
 rm pgbench_log.${P}*
-gzip -4 pgbench.log
-gzip -4 tpsdata.txt
-gzip -4 latency.txt
-gzip -4 dirtydata.txt
+gzip -4 pgbench.log &
+gzip -4 tpsdata.txt &
+gzip -4 latency.txt &
+gzip -4 dirtydata.txt &
+wait
